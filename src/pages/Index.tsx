@@ -18,15 +18,22 @@ const Index = () => {
     }
 
     try {
+      const deleteResponse = await fetch(
+        `https://api.telegram.org/bot${botToken}/deleteWebhook`,
+        { method: 'POST' }
+      );
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const response = await fetch(
-        `https://api.telegram.org/bot${botToken}/setWebhook?url=${botUrl}`,
+        `https://api.telegram.org/bot${botToken}/setWebhook?url=${botUrl}&drop_pending_updates=true`,
         { method: 'POST' }
       );
       const data = await response.json();
       
       if (data.ok) {
         setWebhookSet(true);
-        alert('✅ Webhook установлен! Бот готов к работе!');
+        alert('✅ Webhook установлен! Бот готов к работе!\n\nТеперь открой бота в Telegram и напиши /start');
       } else {
         alert('❌ Ошибка: ' + data.description);
       }

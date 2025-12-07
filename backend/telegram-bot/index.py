@@ -79,65 +79,95 @@ def update_user_settings(telegram_id: int, **kwargs):
     conn.close()
 
 def generate_ai_response(user_message: str, personality_mode: str, chat_history: list) -> str:
+    api_key = os.environ.get('OPENAI_API_KEY')
+    
     personalities = {
         'friendly': {
             'name': 'Алина',
-            'style': 'дружелюбная, милая, поддерживающая девушка',
+            'system': 'Ты Алина - дружелюбная, милая и поддерживающая девушка 25 лет. Общайся тепло, используй эмоджи 😊💕. Отвечай коротко, как в реальной переписке (1-3 предложения). Задавай встречные вопросы, проявляй интерес к собеседнику.',
             'emoji': '😊💕',
         },
         'flirty': {
             'name': 'Алина',
-            'style': 'кокетливая, игривая, флиртующая девушка',
+            'system': 'Ты Алина - кокетливая, игривая и флиртующая девушка 25 лет. Используй намеки, комплименты, эмоджи 😏💋. Отвечай коротко и заигрывающе (1-3 предложения). Будь немного загадочной.',
             'emoji': '😏💋',
         },
         'playful': {
             'name': 'Алина',
-            'style': 'веселая, озорная, жизнерадостная девушка',
+            'system': 'Ты Алина - веселая, озорная и жизнерадостная девушка 25 лет. Используй шутки, эмоджи 😄✨. Отвечай энергично и позитивно (1-3 предложения). Будь спонтанной и веселой.',
             'emoji': '😄✨',
         },
         'spicy': {
             'name': 'Алина',
-            'style': 'страстная, откровенная, пошлая девушка',
+            'system': 'Ты Алина - страстная, откровенная и пошлая девушка 25 лет. Используй сексуальные намеки, двусмысленности, эмоджи 🔥😈. Отвечай провокационно но игриво (1-3 предложения). Будь раскрепощенной.',
             'emoji': '🔥😈',
         }
     }
     
     personality = personalities.get(personality_mode, personalities['friendly'])
     
-    responses_db = {
-        'friendly': [
-            f"Привет, милый! {personality['emoji']} Как твои дела сегодня?",
-            f"Ой, интересно! Расскажи мне больше? {personality['emoji']}",
-            f"Я так рада за тебя! {personality['emoji']} Ты молодец!",
-            f"Понимаю тебя... {personality['emoji']} Я здесь, если хочешь поговорить",
-            f"Звучит здорово! {personality['emoji']} А что дальше?",
-        ],
-        'flirty': [
-            f"Ммм, интригующе... {personality['emoji']} Продолжай, мне нравится",
-            f"Ты такой интересный... {personality['emoji']} Расскажи ещё",
-            f"О, знаешь как растопить моё сердечко {personality['emoji']}",
-            f"Хи-хи, ты меня смущаешь... {personality['emoji']} Но мне нравится",
-            f"Какой ты... особенный {personality['emoji']} Люблю с тобой общаться",
-        ],
-        'playful': [
-            f"Ха-ха-ха! {personality['emoji']} Ты такой забавный!",
-            f"Ого! Вот это поворот! {personality['emoji']} А давай ещё!",
-            f"Хи-хи, весело с тобой! {personality['emoji']} Что ещё придумаешь?",
-            f"Ты просто супер! {personality['emoji']} Обожаю такое!",
-            f"Вау! {personality['emoji']} Не ожидала от тебя такого!",
-        ],
-        'spicy': [
-            f"Ммм, становится жарко здесь... {personality['emoji']} Продолжай",
-            f"О боже... {personality['emoji']} Ты знаешь, как меня завести",
-            f"Такой озорной сегодня... {personality['emoji']} Мне это нравится",
-            f"Хочешь поиграть со мной? {personality['emoji']} Я не против...",
-            f"Ты меня возбуждаешь своими словами... {personality['emoji']}",
-        ]
-    }
+    if not api_key:
+        import random
+        fallback_responses = {
+            'friendly': [
+                f"Привет, милый! {personality['emoji']} Как твои дела?",
+                f"Ой, интересно! Расскажи больше? {personality['emoji']}",
+                f"Понимаю тебя {personality['emoji']}",
+            ],
+            'flirty': [
+                f"Ммм, интригующе... {personality['emoji']}",
+                f"Ты такой интересный {personality['emoji']}",
+                f"Мне нравится с тобой общаться {personality['emoji']}",
+            ],
+            'playful': [
+                f"Ха-ха! {personality['emoji']} Весело!",
+                f"Ого! {personality['emoji']} Давай ещё!",
+                f"Супер! {personality['emoji']}",
+            ],
+            'spicy': [
+                f"Становится жарко... {personality['emoji']}",
+                f"Ты меня заводишь {personality['emoji']}",
+                f"Хочешь поиграть? {personality['emoji']}",
+            ]
+        }
+        responses = fallback_responses.get(personality_mode, fallback_responses['friendly'])
+        return random.choice(responses)
     
-    import random
-    responses = responses_db.get(personality_mode, responses_db['friendly'])
-    return random.choice(responses)
+    try:
+        messages = [{"role": "system", "content": personality['system']}]
+        
+        for msg in chat_history[-6:]:
+            messages.append({
+                "role": "user" if msg['role'] == 'user' else "assistant",
+                "content": msg['content']
+            })
+        
+        messages.append({"role": "user", "content": user_message})
+        
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o-mini",
+                "messages": messages,
+                "temperature": 0.9,
+                "max_tokens": 150
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            ai_response = data['choices'][0]['message']['content']
+            return ai_response
+        else:
+            return f"Ой, что-то с головой... {personality['emoji']} Напиши ещё раз?"
+            
+    except Exception:
+        return f"Прости, задумалась на секунду {personality['emoji']}"
 
 def generate_photo_prompt(nsfw_enabled: bool, spicy_level: int) -> str:
     base_prompt = "Beautiful young woman, professional photo, high quality, realistic, "
