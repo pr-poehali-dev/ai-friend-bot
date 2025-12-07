@@ -1,0 +1,26 @@
+{
+  "tests": [
+    {
+      "name": "Service health check",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "status": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Generate photo test",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "telegram_id": 12345,
+        "chat_id": 12345,
+        "style_variation": 1
+      },
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
